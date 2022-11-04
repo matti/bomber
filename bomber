@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+_request() {
+  if status=$(curl -o /dev/null -w "%{http_code}" -Lsf "$1"); then
+    return
+  fi
+
+  echo "status: $status"
+  exit 1
+}
+
+target=$2
+batch=1
+cookies=no
+
+opts="${@:1:${#}-1}"
+for opt in $opts; do
+  case $opt in
+    --batch=*)
+      batch=${opt#*=}
+    ;;
+    *)
+      echo "unknown opt: $opt"
+      exit 1
+    ;;
+  esac
+done
+
+requests=0
+while true; do
+  start=$SECONDS
+
+  for ((i=0; i < batch; i++)); do
+    _request "$target" &
+    requests=$((requests+1))
+  done
+
+  wait
+  took=$((SECONDS - start))
+  echo "batch: $batch requests: $requests - took: $took"
+done
